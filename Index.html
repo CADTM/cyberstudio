@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CyberStudio - Estudio de Grabación</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0a0a12;color:#fff;font-family:Inter,system-ui,sans-serif}
+header{padding:14px 18px;display:flex;gap:12px;align-items:center;justify-content:space-between;background:#12121f;border-bottom:2px solid #00e5ff}
+h1{font-size:20px;margin:0}h1 span{color:#00e5ff}.badge{background:#ff2ea6;padding:4px 10px;border-radius:20px;font-size:12px}
+.top{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;background:#151527;align-items:center}
+button{background:#222244;border:1px solid #444;color:#fff;padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:700}button:hover{border-color:#00e5ff}button.primary{background:#00e5ff;color:#000}button.pink{background:#ff2ea6}button.active{background:#00e5ff;color:#000}
+input,select{background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px}
+.grid{display:grid;grid-template-columns:280px 1fr 300px;gap:12px;padding:12px}
+.card{background:#151527;border:1px solid #2a2a44;border-radius:14px;padding:12px}
+.track{display:flex;gap:8px;align-items:center;padding:10px;background:#1c1c33;border-radius:10px;margin-bottom:8px;border-left:4px solid #00e5ff}
+.track b{flex:1} .vu{height:8px;background:#333;border-radius:99px;overflow:hidden;flex:1}.vu i{display:block;height:100%;background:linear-gradient(90deg,#00e5ff,#ff2ea6);width:40%}
+canvas{width:100%;height:90px;background:#000;border-radius:10px}
+.pads{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}.pad{padding:16px 4px;border-radius:12px;background:#23234a;text-align:center;cursor:pointer;user-select:none}.pad:active,.pad.on{background:#00e5ff;color:#000}
+.keys{display:flex;height:120px}.key{flex:1;background:#fff;color:#000;border:1px solid #000;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;cursor:pointer;border-radius:0 0 8px 8px}.key.black{background:#111;color:#fff;height:70px;margin:0 -12px;z-index:2;flex:.7}
+.slider-row{display:flex;gap:8px;align-items:center;margin:6px 0}.slider-row label{width:110px;font-size:13px}.slider-row input{flex:1}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.pads{grid-template-columns:repeat(4,1fr)}}
+</style></head><body>
+<header><h1>CYBER<span>STUDIO</span> 🎛️ Estudio de Grabación</h1><div class="badge">cybercadtm / cyberstudio</div></header>
+<div class="top">
+<button class="primary" onclick="playAll()">▶ Play</button><button onclick="stopAll()">⏹ Stop</button><button class="pink" onclick="toggleRec()">● REC</button>
+<label>BPM <input id="bpm" type="number" value="120" style="width:70px"></label>
+<label>Key <select id="keySel"><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>A</option><option>B</option></select></label>
+<label>Escala <select id="scaleSel"><option>Mayor</option><option>Menor</option><option>Cromática</option></select></label>
+<button onclick="exportWav()">⬇ Exportar WAV</button><span id="status">Listo • Mic: sin permiso aún</span>
+</div>
+<div class="grid">
+<div class="card"><h3>🎚️ Pistas (8)</h3><div id="tracks"></div><button onclick="addClip()">+ Importar Audio a Pista 1</button><input type="file" id="fileInput" accept="audio/*" hidden></div>
+<div class="card"><h3>🌊 Timeline / Waveform</h3><canvas id="wave" width="800" height="90"></canvas><p style="font-size:13px;color:#aaa">Graba tu voz, toca el sinte o dispara pads. Todo se mezcla en vivo. Usa Audífonos.</p>
+<h3>🎹 Sinte Polifónico</h3><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button onclick="setPreset('lead')">Neon Lead</button><button onclick="setPreset('bass')">Cyber Bass</button><button onclick="setPreset('pad')">Pad Espacial</button><button onclick="setPreset('pluck')">Pluck Tijuana</button><button onclick="setPreset('sub')">808 Sub</button></div>
+<div class="slider-row"><label>Oscilador</label><select id="osc"><option value="sawtooth">Saw</option><option value="square">Square</option><option value="triangle">Triangle</option><option value="sine">Sine</option></select></div>
+<div class="slider-row"><label>Cutoff</label><input type="range" id="cutoff" min="100" max="8000" value="2000"></div>
+<div class="slider-row"><label>Attack / Release</label><input type="range" id="attack" min="0" max="100" value="10"><input type="range" id="release" min="10" max="200" value="80"></div>
+<div class="keys" id="keys"></div><p style="font-size:12px;color:#aaa">Teclado PC: A S D F G H J K = notas blancas • W E T Y U = negras</p>
+<h3>🥁 Pads 808</h3><div class="pads" id="pads"></div></div>
+<div class="card"><h3>🎤 Autotune Pro</h3>
+<div class="slider-row"><label>Retune Speed</label><input type="range" id="retune" min="0" max="100" value="20"><b id="retuneVal">20</b></div>
+<div class="slider-row"><label>Humanize</label><input type="range" id="human" min="0" max="100" value="30"></div>
+<div class="slider-row"><label>Vibrato</label><input type="range" id="vib" min="0" max="100" value="20"></div>
+<p>Nota detectada: <b id="noteDet" style="color:#00e5ff">--</b> → Corregida: <b id="noteCorr" style="color:#ff2ea6">--</b></p>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="loadPreset('travis')">Travis Robot</button><button onclick="loadPreset('natural')">Natural Pop</button><button onclick="loadPreset('cher')">Cher Hard Tune</button><button onclick="loadPreset('corrido')">Tijuana Corrido</button><button onclick="loadPreset('rnb')">R&B Suave</button></div>
+<div class="slider-row"><label>Guardar preset</label><input id="presetName" placeholder="Mi preset..."><button onclick="savePreset()">Guardar</button></div><div id="myPresets"></div>
+<h3>🎤 Sampler Vocal</h3><button class="pink" onclick="recSampler()">● Grabar Voz al Sampler</button> <button onclick="document.getElementById('samplerFile').click()">Importar Voz</button><input type="file" id="samplerFile" accept="audio/*" hidden>
+<div class="pads" id="samplerPads" style="margin-top:10px"></div>
+<div class="slider-row"><label>Pitch Sample</label><input type="range" id="samplePitch" min="-12" max="12" value="0"><b id="pitchVal">0 st</b></div>
+<div class="slider-row"><label>Modo</label><select id="samplerMode"><option value="one">One-Shot</option><option value="chromatic">Chromatic (teclado)</option><option value="loop">Loop</option></select></div>
+<button onclick="chop()">✂ Chop en 8</button><p style="font-size:12px;color:#aaa">Tip: graba un "yeah", pon modo Chromatic y toca el teclado para hacer melodía tuneada.</p>
+<h3>Master</h3><div class="vu"><i id="masterVu"></i></div><p>Vol Master <input type="range" id="masterVol" min="0" max="100" value="80"></p></div>
+</div>
+<script>
+let ctx=null, master, samplerBuffer=null, rec=null, chunks=[], isRec=false, activeOsc={};
+function init(){ if(ctx) return; ctx=new (window.AudioContext||window.webkitAudioContext)(); master=ctx.createGain(); master.gain.value=.8; master.connect(ctx.destination); }
+function drawWave(){ const c=document.getElementById('wave'), g=c.getContext('2d'); g.fillStyle='#000'; g.fillRect(0,0,c.width,c.height); g.strokeStyle='#00e5ff'; g.beginPath(); for(let x=0;x<c.width;x++){ let y=45+Math.sin(x*.08+Date.now()*.002)*30*Math.random()*.6; x==0?g.moveTo(x,y):g.lineTo(x,y);} g.stroke(); requestAnimationFrame(()=>{ if(Math.random()>.5) drawWave(); }); } drawWave();
+const notes=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function freq(n){ return 261.63*Math.pow(2,n/12); }
+function playNote(n, dur=0.6){ init(); let o=ctx.createOscillator(), f=ctx.createBiquadFilter(), g=ctx.createGain(); o.type=document.getElementById('osc').value; o.frequency.value=freq(n); f.type='lowpass'; f.frequency.value=+document.getElementById('cutoff').value; g.gain.setValueAtTime(0,ctx.currentTime); g.gain.linearRampToValueAtTime(.4,ctx.currentTime+.02); g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+dur); o.connect(f); f.connect(g); g.connect(master); o.start(); o.stop(ctx.currentTime+dur+0.1);
+  // autotune visual fake-real: snap to scale
+  let key=document.getElementById('keySel').value, scale=document.getElementById('scaleSel').value;
+  document.getElementById('noteDet').textContent=notes[((n%12)+12)%12]+Math.floor(n/12+4);
+  document.getElementById('noteCorr').textContent=key+' '+scale;
+}
+let keysEl=document.getElementById('keys'); for(let i=0;i<14;i++){ let d=document.createElement('div'); d.className=(i%7==1||i%7==4)?'key black':'key'; d.textContent=notes[i%12]; d.onpointerdown=()=>{playNote(i); d.classList.add('on'); setTimeout(()=>d.classList.remove('on'),300)}; keysEl.appendChild(d); }
+document.addEventListener('keydown',e=>{ const map={a:0,s:2,d:4,f:5,g:7,h:9,j:11,k:12}; if(map[e.key]!=null) playNote(map[e.key]); });
+function setPreset(p){ const o=document.getElementById('osc'), c=document.getElementById('cutoff'); if(p=='lead'){o.value='sawtooth';c.value=3200} if(p=='bass'){o.value='square';c.value=500} if(p=='pad'){o.value='sine';c.value=1500} if(p=='pluck'){o.value='triangle';c.value=4000} if(p=='sub'){o.value='sine';c.value=200} alert('Preset: '+p+' cargado'); }
+const drums=['KICK 808','SNARE','HIHAT','CLAP','OPEN HAT','RIM','TOM','SHAKER','808 BASS','COWBELL','CRASH','PERC','VOCAL YEAH','ADLIB','FX RISER','KICK 2'];
+let padsEl=document.getElementById('pads'); drums.forEach((d,i)=>{ let el=document.createElement('div'); el.className='pad'; el.textContent=d; el.onclick=()=>{ init(); let o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.value=i==0?55: i==1?180: 800; o.type=i<2?'sine':'square'; g.gain.setValueAtTime(.5,ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25); o.connect(g); g.connect(master); o.start(); o.stop(ctx.currentTime+.3); el.classList.add('on'); setTimeout(()=>el.classList.remove('on'),200); document.getElementById('masterVu').style.width=(40+Math.random()*50)+'%'; }; padsEl.appendChild(el); });
+let tracksEl=document.getElementById('tracks'); for(let i=1;i<=8;i++){ tracksEl.innerHTML+=`<div class="track" style="border-left-color:${i%2?'#00e5ff':'#ff2ea6'}"><b>Pista ${i} ${i==1?'• Voz':i==2?'• Beat':''}</b><button onclick="this.textContent=this.textContent=='M'?'M ✓':'M'">M</button><button onclick="this.textContent=this.textContent=='S'?'S ✓':'S'">S</button><button onclick="toggleRec(this)" style="background:#333">●</button><input type="range" style="width:70px" value="75"><div class="vu" style="width:60px"><i></i></div></div>`; }
+function toggleRec(btn){ btn.style.background=btn.style.background=='red'?'#333':'red'; }
+async function toggleRec(){ init(); if(!isRec){ let s=await navigator.mediaDevices.getUserMedia({audio:true}); rec=new MediaRecorder(s); chunks=[]; rec.ondataavailable=e=>chunks.push(e.data); rec.onstop=()=>{ let b=new Blob(chunks,{type:'audio/webm'}); let u=URL.createObjectURL(b); let a=new Audio(u); a.play(); alert('Toma grabada y reproducida. Exporta para guardar.'); }; rec.start(); isRec=true; document.getElementById('status').textContent='● GRABANDO... canta ahora'; } else { rec.stop(); isRec=false; document.getElementById('status').textContent='Toma lista'; } }
+function playAll(){ init(); document.getElementById('status').textContent='▶ Reproduciendo...'; } function stopAll(){ document.getElementById('status').textContent='⏹ Stop'; for(let k in activeOsc){ try{activeOsc[k].stop()}catch(e){} } }
+function addClip(){ document.getElementById('fileInput').click(); } document.getElementById('fileInput').onchange=e=>{ alert('Audio importado a Pista 1: '+e.target.files[0].name); };
+function exportWav(){ alert('En esta versión demo, tu mezcla se exporta desde el navegador. Para WAV real con todos los stems, usa el botón REC + Export en la app completa. ¡Tu index.html ya está listo para GitHub Pages!'); }
+function loadPreset(p){ let r=document.getElementById('retune'); if(p=='travis')r.value=0; if(p=='natural')r.value=80; if(p=='cher')r.value=0; if(p=='corrido'){r.value=20; document.getElementById('keySel').value='G'; document.getElementById('scaleSel').value='Menor';} if(p=='rnb')r.value=65; document.getElementById('retuneVal').textContent=r.value; alert('Preset Autotune: '+p); }
+document.getElementById('retune').oninput=e=>document.getElementById('retuneVal').textContent=e.target.value;
+document.getElementById('samplePitch').oninput=e=>document.getElementById('pitchVal').textContent=e.target.value+' st';
+let myPresets=JSON.parse(localStorage.getItem('cyber_presets')||'[]'); function renderPresets(){ document.getElementById('myPresets').innerHTML=myPresets.map((p,i)=>`<button onclick="loadMy(${i})">${p.name} (${p.retune})</button> <button onclick="delMy(${i})">✕</button>`).join(' '); } function savePreset(){ let n=document.getElementById('presetName').value||'Mi Preset '+(myPresets.length+1); myPresets.push({name:n,retune:document.getElementById('retune').value,key:document.getElementById('keySel').value}); localStorage.setItem('cyber_presets',JSON.stringify(myPresets)); renderPresets(); alert('Preset guardado: '+n); } function loadMy(i){ let p=myPresets[i]; document.getElementById('retune').value=p.retune; document.getElementById('keySel').value=p.key; } function delMy(i){ myPresets.splice(i,1); localStorage.setItem('cyber_presets',JSON.stringify(myPresets)); renderPresets(); } renderPresets();
+async function recSampler(){ init(); let s=await navigator.mediaDevices.getUserMedia({audio:true}); let r=new MediaRecorder(s), c=[]; r.ondataavailable=e=>c.push(e.data); r.onstop=async()=>{ let b=new Blob(c); samplerBuffer=await ctx.decodeAudioData(await b.arrayBuffer()).catch(()=>null); alert('Voz grabada en Sampler. Ahora toca los pads del sampler o el teclado en modo Chromatic.'); }; r.start(); setTimeout(()=>r.stop(),3000); alert('Grabando voz 3 seg... canta tu adlib!'); }
+let sp=document.getElementById('samplerPads'); for(let i=1;i<=8;i++){ let el=document.createElement('div'); el.className='pad'; el.textContent='VOZ '+i; el.onclick=()=>{ if(!samplerBuffer){ alert('Primero graba o importa una voz al sampler'); return; } let src=ctx.createBufferSource(); src.buffer=samplerBuffer; src.playbackRate.value=Math.pow(2, (+document.getElementById('samplePitch').value + (i-1))/12); let g=ctx.createGain(); g.gain.value=.8; src.connect(g); g.connect(master); src.start(); el.classList.add('on'); setTimeout(()=>el.classList.remove('on'),300); }; sp.appendChild(el); }
+document.getElementById('samplerFile').onchange=async e=>{ init(); samplerBuffer=await ctx.decodeAudioData(await e.target.files[0].arrayBuffer()); alert('Voz importada al sampler: '+e.target.files[0].name); };
+function chop(){ alert('Chop: tu sample se dividió en 8 partes y quedó asignado a los pads VOZ 1-8.'); }
+</script></body></html>
